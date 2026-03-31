@@ -74,51 +74,66 @@ export default function LoginPage() {
 
             {!setupMode ? (
               <div className="setup-options">
-                <button className="setup-btn" onClick={() => setSetupMode('create')}>
+                <button className="setup-card" onClick={() => setSetupMode('create')}>
                   <div className="setup-icon"><Plus size={24} /></div>
                   <div className="setup-text">
                     <strong>Create Household</strong>
                     <span>Start a new shared space</span>
                   </div>
+                  <ArrowRight size={20} className="setup-arrow" color="var(--text-muted)" />
                 </button>
-                <button className="setup-btn" onClick={() => setSetupMode('join')}>
+                <button className="setup-card" onClick={() => setSetupMode('join')}>
                   <div className="setup-icon"><Users size={24} /></div>
                   <div className="setup-text">
                     <strong>Join Household</strong>
                     <span>Use an invite code from your partner</span>
                   </div>
+                  <ArrowRight size={20} className="setup-arrow" color="var(--text-muted)" />
                 </button>
               </div>
             ) : setupMode === 'create' ? (
               <form onSubmit={handleCreateHousehold} className="login-form">
                 <div className="form-field">
                   <label>Household Name</label>
-                  <input 
-                    className="input-base"
-                    placeholder="e.g. The Smith Home" 
-                    value={householdName}
-                    onChange={e => setHouseholdName(e.target.value)}
-                    required
-                  />
+                  <div className="field-input-wrapper">
+                    <Home size={18} />
+                    <input 
+                      placeholder="e.g. The Smith Home" 
+                      value={householdName}
+                      onChange={e => setHouseholdName(e.target.value)}
+                      required
+                      autoFocus
+                    />
+                  </div>
                 </div>
-                <button type="submit" className="login-submit">Create & Continue</button>
-                <button type="button" className="btn-link" onClick={() => setSetupMode(null)}>Back</button>
+                <button type="submit" className="login-submit">
+                  <span>Create & Continue</span>
+                  <ArrowRight size={18} />
+                </button>
+                <button type="button" className="btn-link" onClick={() => setSetupMode(null)}>Back to Options</button>
               </form>
             ) : (
               <form onSubmit={handleJoinHousehold} className="login-form">
                 <div className="form-field">
                   <label>Invite Code</label>
-                  <input 
-                    className="input-base"
-                    placeholder="ENTER CODE" 
-                    style={{ textTransform: 'uppercase', letterSpacing: '2px', textAlign: 'center' }}
-                    value={inviteCode}
-                    onChange={e => setInviteCode(e.target.value)}
-                    required
-                  />
+                  <div className="field-input-wrapper">
+                    <Lock size={18} />
+                    <input 
+                      placeholder="ENTER CODE" 
+                      style={{ textTransform: 'uppercase', letterSpacing: '4px', textAlign: 'center', fontWeight: 'bold' }}
+                      value={inviteCode}
+                      onChange={e => setInviteCode(e.target.value)}
+                      required
+                      autoFocus
+                      maxLength={10}
+                    />
+                  </div>
                 </div>
-                <button type="submit" className="login-submit">Join & Sync</button>
-                <button type="button" className="btn-link" onClick={() => setSetupMode(null)}>Back</button>
+                <button type="submit" className="login-submit">
+                  <span>Join & Sync</span>
+                  <ArrowRight size={18} />
+                </button>
+                <button type="button" className="btn-link" onClick={() => setSetupMode(null)}>Back to Options</button>
               </form>
             )}
 
@@ -460,6 +475,84 @@ export default function LoginPage() {
           gap: 8px;
           color: var(--text-muted);
           font-size: 0.8125rem;
+        }
+        .setup-options {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        .setup-card {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          padding: 20px;
+          background: var(--bg-primary);
+          border: 1px solid var(--border-default);
+          border-radius: 16px;
+          cursor: pointer;
+          transition: all 0.25s ease;
+          width: 100%;
+          text-align: left;
+          color: var(--text-primary);
+        }
+        .setup-card:hover {
+          background: var(--bg-tertiary);
+          border-color: var(--accent-primary);
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        }
+        .setup-card:active {
+          transform: translateY(0);
+        }
+        .setup-icon {
+          width: 48px;
+          height: 48px;
+          border-radius: 12px;
+          background: linear-gradient(135deg, rgba(220, 53, 69, 0.1), rgba(255, 107, 107, 0.1));
+          color: var(--accent-primary);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          transition: all 0.25s ease;
+        }
+        .setup-card:hover .setup-icon {
+          transform: scale(1.05) rotate(5deg);
+        }
+        .setup-text {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .setup-text strong {
+          font-size: 1.05rem;
+          font-weight: 600;
+        }
+        .setup-text span {
+          font-size: 0.85rem;
+          color: var(--text-tertiary);
+        }
+        .setup-arrow {
+          transition: transform 0.25s ease;
+        }
+        .setup-card:hover .setup-arrow {
+          transform: translateX(4px);
+          color: var(--accent-primary) !important;
+        }
+        .btn-link {
+          background: none;
+          border: none;
+          color: var(--text-secondary);
+          font-size: 0.9rem;
+          font-weight: 500;
+          cursor: pointer;
+          padding: 8px;
+          margin-top: 8px;
+          transition: color 0.2s ease;
+        }
+        .btn-link:hover {
+          color: var(--accent-primary);
         }
       `}</style>
     </div>
