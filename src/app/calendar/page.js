@@ -89,9 +89,9 @@ export default function CalendarPage() {
   const getEventsForDate = (day) => {
     const dStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     return (events || []).filter(e => {
-      const eDate = e.start?.split('T')[0];
+      const eDate = e.start_time?.split('T')[0];
       return eDate === dStr;
-    }).sort((a, b) => new Date(a.start) - new Date(b.start));
+    }).sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
   };
 
   const calendarDays = useMemo(() => {
@@ -117,14 +117,14 @@ export default function CalendarPage() {
       return `${d}T${String(h).padStart(2, '0')}:${m}:00`;
     };
 
-    const start = combine(newEvent.date, newEvent.startTime);
-    const end = combine(newEvent.date, newEvent.endTime);
+    const start_time = combine(newEvent.date, newEvent.startTime);
+    const end_time = combine(newEvent.date, newEvent.endTime);
     
     const color = COLORS[newEvent.category] || '#DC3545';
     await addItem('events', { 
       title: newEvent.title, 
-      start, 
-      end, 
+      start_time, 
+      end_time, 
       category: newEvent.category, 
       location: newEvent.location, 
       color 
@@ -136,14 +136,14 @@ export default function CalendarPage() {
   // Chronological Grouping for List View
   const groupedEvents = useMemo(() => {
     const upcoming = (events || [])
-      .filter(e => new Date(e.start) >= new Date().setHours(0,0,0,0))
-      .sort((a, b) => new Date(a.start) - new Date(b.start));
+      .filter(e => new Date(e.start_time) >= new Date().setHours(0,0,0,0))
+      .sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
 
     const groups = [];
     let currentLabel = '';
 
     upcoming.forEach(e => {
-      const d = new Date(e.start);
+      const d = new Date(e.start_time);
       const today = new Date();
       let label = '';
       
@@ -241,7 +241,7 @@ export default function CalendarPage() {
                   {group.items.map(e => (
                     <div key={e.id} className="agenda-item">
                       <div className="item-time">
-                        {new Date(e.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                        {new Date(e.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
                       </div>
                       <div className="item-card" style={{ '--card-color': e.color }}>
                         <div className="item-main">

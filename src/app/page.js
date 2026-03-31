@@ -42,7 +42,7 @@ export default function DashboardPage() {
   }
 
   const pendingGroceries = (groceryLists || []).reduce((sum, l) => sum + (l?.items || []).filter(i => !i.checked).length, 0);
-  const upcomingEvents = (events || []).filter(e => e?.start && new Date(e.start) > new Date()).slice(0, 3);
+  const upcomingEvents = (events || []).filter(e => e?.start_time && new Date(e.start_time) > new Date()).slice(0, 3);
   const pendingBills = (bills || []).filter(b => b?.status === 'pending');
   const totalDue = pendingBills.reduce((s, b) => s + (Number(b?.amount) || 0), 0);
   const pendingChores = (chores || []).filter(c => c?.status === 'pending');
@@ -91,9 +91,9 @@ export default function DashboardPage() {
                   <div className="event-info">
                     <span className="event-title">{event.title}</span>
                     <span className="event-time">
-                      {new Date(event.start).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                      {new Date(event.start_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                       {' · '}
-                      {new Date(event.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                      {new Date(event.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                     </span>
                   </div>
                   <span className="badge badge-gray">{event.category}</span>
