@@ -202,13 +202,6 @@ export function AppProvider({ children }) {
       options: { data: { full_name: fullName } }
     });
     if (signUpError) throw signUpError;
-
-    if (user) {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert([{ id: user.id, email, full_name: fullName }]);
-      if (profileError) throw profileError;
-    }
   }, []);
 
   const logout = useCallback(async () => {
