@@ -1,18 +1,24 @@
 'use client';
 import { useState } from 'react';
 import { useApp } from '@/context/AppContext';
-import { Wallet, Plus, X, TrendingUp, TrendingDown, Clock, CheckCircle2, AlertCircle, DollarSign, PieChart, Calendar } from 'lucide-react';
+import { Wallet, Plus, X, TrendingUp, TrendingDown, Clock, CheckCircle2, AlertCircle, DollarSign, PieChart, Calendar, Edit2, Trash2 } from 'lucide-react';
 
 const BILL_CATS = ['Housing', 'Utilities', 'Subscriptions', 'Insurance', 'Transportation', 'Medical', 'Other'];
 const EXPENSE_CATS = ['Food', 'Transport', 'Entertainment', 'Shopping', 'Utilities', 'Health', 'Other'];
 const PERIODS = ['weekly', 'monthly', 'annual'];
 
 export default function FinancesPage() {
-  const { bills, budgets, expenses, members, currentUser, addItem, updateItem, removeItem, isLoading } = useApp();
+  const { bills, budgets, expenses, members, currentUser, addItem, updateItem, removeItem, isLoading, addNotification } = useApp();
   const [activeTab, setActiveTab] = useState('overview');
   const [showAddBill, setShowAddBill] = useState(false);
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showAddBudget, setShowAddBudget] = useState(false);
+  
+  const [editingBill, setEditingBill] = useState(null);
+  const [editingExpense, setEditingExpense] = useState(null);
+  const [editingBudget, setEditingBudget] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+
   const [newBill, setNewBill] = useState({ name: '', amount: '', due_date: '', recurrence: 'monthly', category: 'Other', remind_days_before: 3, status: 'pending' });
   const [newExpense, setNewExpense] = useState({ description: '', amount: '', date: new Date().toISOString().split('T')[0], category: 'Food', paid_by: currentUser?.id || '' });
   const [newBudget, setNewBudget] = useState({ name: '', amount: '', period: 'monthly', category: 'Food', spent: 0 });
@@ -28,30 +34,107 @@ export default function FinancesPage() {
   const catSpend = expenses.reduce((acc, e) => { acc[e.category] = (acc[e.category] || 0) + e.amount; return acc; }, {});
   const maxCatSpend = Math.max(...Object.values(catSpend), 1);
 
-  const toggleBillStatus = (id) => {
-    const bill = bills.find(b => b.id === id);
-    updateItem('bills', id, { status: bill.status === 'paid' ? 'pending' : 'paid' });
-  };
-
-  const addBill = () => {
-    if (!newBill.name || !newBill.amount) return;
-    addItem('bills', { ...newBill, amount: parseFloat(newBill.amount) });
+  const resetBill = () => {
     setNewBill({ name: '', amount: '', due_date: '', recurrence: 'monthly', category: 'Other', remind_days_before: 3, status: 'pending' });
+    setEditingBill(null);
     setShowAddBill(false);
   };
 
-  const handleAddExpense = () => {
-    if (!newExpense.description || !newExpense.amount) return;
-    addItem('expenses', { ...newExpense, amount: parseFloat(newExpense.amount) });
+  const resetExpense = () => {
     setNewExpense({ description: '', amount: '', date: new Date().toISOString().split('T')[0], category: 'Food', paid_by: currentUser?.id || '' });
+    setEditingExpense(null);
     setShowAddExpense(false);
   };
 
-  const addBudgetItem = () => {
-    if (!newBudget.name || !newBudget.amount) return;
-    addItem('budgets', { ...newBudget, amount: parseFloat(newBudget.amount), spent: 0 });
+  const resetBudget = () => {
     setNewBudget({ name: '', amount: '', period: 'monthly', category: 'Food', spent: 0 });
+    setEditingBudget(null);
     setShowAddBudget(false);
+  };
+
+  const openEditBill = (bill) => {
+    setNewBill({ ...bill, amount: bill.amount.toString() });
+    setEditingBill(bill);
+    setShowAddBill(true);
+  };
+
+  const openEditExpense = (exp) => {
+    setNewExpense({ ...exp, amount: exp.amount.toString() });
+    setEditingExpense(exp);
+    setShowAddExpense(true);
+  };
+
+  const openEditBudget = (budget) => {
+    setNewBudget({ ...budget, amount: budget.amount.toString() });
+    setEditingBudget(budget);
+    setShowAddBudget(true);
+  };
+
+  const handleSubmitBill = async () => {
+    if (!newBill.name || !newBill.amount || isSaving) return;
+    setIsSaving(true);
+    try {
+      const payload = { ...newBill, amount: parseFloat(newBill.amount) };
+      let success = false;
+      if (editingBill) {
+        success = await updateItem('bills', editingBill.id, payload);
+      } else {
+        success = await addItem('bills', payload);
+      }
+      if (success) resetBill();
+    } catch (err) {
+      console.error('Bill submit error:', err);
+      addNotification('error', 'Failed to save bill');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSubmitExpense = async () => {
+    if (!newExpense.description || !newExpense.amount || isSaving) return;
+    setIsSaving(true);
+    try {
+      const payload = { ...newExpense, amount: parseFloat(newExpense.amount) };
+      let success = false;
+      if (editingExpense) {
+        success = await updateItem('expenses', editingExpense.id, payload);
+      } else {
+        success = await addItem('expenses', payload);
+      }
+      if (success) resetExpense();
+    } catch (err) {
+      console.error('Expense submit error:', err);
+      addNotification('error', 'Failed to save expense');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSubmitBudget = async () => {
+    if (!newBudget.name || !newBudget.amount || isSaving) return;
+    setIsSaving(true);
+    try {
+      const payload = { ...newBudget, amount: parseFloat(newBudget.amount) };
+      let success = false;
+      if (editingBudget) {
+        success = await updateItem('budgets', editingBudget.id, payload);
+      } else {
+        success = await addItem('budgets', payload);
+      }
+      if (success) resetBudget();
+    } catch (err) {
+      console.error('Budget submit error:', err);
+      addNotification('error', 'Failed to save budget');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleRemove = async (type, id) => {
+    if (isSaving || !window.confirm('Delete this item?')) return;
+    setIsSaving(true);
+    await removeItem(type, id);
+    setIsSaving(false);
   };
 
   const getMemberName = (id) => members.find(m => m.id === id)?.full_name || 'Partner';
@@ -139,7 +222,10 @@ export default function FinancesPage() {
               </div>
               <span className="badge badge-gray">{bill.category}</span>
               <span className="bi-amount">${bill.amount.toFixed(2)}</span>
-              <button className="btn btn-ghost btn-icon sm" onClick={() => removeItem('bills', bill.id)}><X size={14} /></button>
+              <div className="item-actions">
+                <button className="btn btn-ghost btn-icon sm" onClick={() => openEditBill(bill)}><Edit2 size={14} /></button>
+                <button className="btn btn-ghost btn-icon sm text-error" onClick={() => handleRemove('bills', bill.id)}><Trash2 size={14} /></button>
+              </div>
             </div>
           ))}
         </div>
@@ -152,14 +238,23 @@ export default function FinancesPage() {
             const remaining = b.amount - b.spent;
             return (
               <div key={b.id} className="budget-card">
-                <div className="bc-top"><span className="bc-name">{b.name}</span><span className="badge badge-gray">{b.period}</span></div>
+                <div className="bc-top">
+                  <div>
+                    <span className="bc-name">{b.name}</span>
+                    <span className="badge badge-gray" style={{ marginLeft: 8 }}>{b.period}</span>
+                  </div>
+                  <div className="bc-actions">
+                    <button className="btn btn-ghost btn-icon sm" onClick={() => openEditBudget(b)}><Edit2 size={14} /></button>
+                    <button className="btn btn-ghost btn-icon sm text-error" onClick={() => handleRemove('budgets', b.id)}><Trash2 size={14} /></button>
+                  </div>
+                </div>
                 <div className="bc-amounts"><span className="bc-spent">${b.spent.toFixed(0)}</span><span className="bc-total">of ${b.amount.toFixed(0)}</span></div>
                 <div className="progress-bar" style={{ height: 8 }}><div className="progress-bar-fill" style={{ width: `${pct}%`, background: remaining < 0 ? 'var(--error)' : undefined }} /></div>
                 <span className="bc-remaining" style={{ color: remaining < 0 ? 'var(--error)' : 'var(--success)' }}>{remaining >= 0 ? `$${remaining.toFixed(0)} remaining` : `$${Math.abs(remaining).toFixed(0)} over budget`}</span>
               </div>
             );
           })}
-          <button className="budget-card add-budget" onClick={() => setShowAddBudget(true)}>
+          <button className="budget-card add-budget" onClick={() => { setShowAddBudget(true); setEditingBudget(null); }}>
             <Plus size={24} /><span>Add Budget</span>
           </button>
         </div>
@@ -170,9 +265,11 @@ export default function FinancesPage() {
           {expenses.sort((a, b) => new Date(b.date) - new Date(a.date)).map(exp => (
             <div key={exp.id} className="expense-item">
               <div className="ei-info"><span className="ei-desc">{exp.description}</span><span className="ei-meta">{new Date(exp.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · Paid by {getMemberName(exp.paid_by)}</span></div>
-              <span className="badge badge-gray">{exp.category}</span>
               <span className="ei-amount">-${exp.amount.toFixed(2)}</span>
-              <button className="btn btn-ghost btn-icon sm" onClick={() => removeItem('expenses', exp.id)}><X size={14} /></button>
+              <div className="item-actions">
+                <button className="btn btn-ghost btn-icon sm" onClick={() => openEditExpense(exp)}><Edit2 size={14} /></button>
+                <button className="btn btn-ghost btn-icon sm text-error" onClick={() => handleRemove('expenses', exp.id)}><Trash2 size={14} /></button>
+              </div>
             </div>
           ))}
         </div>
@@ -182,7 +279,7 @@ export default function FinancesPage() {
       {showAddBill && (
         <div className="modal-overlay" onClick={() => setShowAddBill(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header"><h2>Add Bill</h2><button className="btn btn-ghost btn-icon" onClick={() => setShowAddBill(false)}><X size={18} /></button></div>
+            <div className="modal-header"><h2>{editingBill ? 'Edit Bill' : 'Add Bill'}</h2><button className="btn btn-ghost btn-icon" onClick={resetBill}><X size={18} /></button></div>
             <div className="modal-body">
               <div className="input-group"><label className="input-label">Bill Name</label><input className="input" value={newBill.name} onChange={e => setNewBill({ ...newBill, name: e.target.value })} placeholder="e.g. Rent" /></div>
               <div className="input-group"><label className="input-label">Amount ($)</label><input className="input" type="number" value={newBill.amount} onChange={e => setNewBill({ ...newBill, amount: e.target.value })} placeholder="0.00" /></div>
@@ -190,7 +287,7 @@ export default function FinancesPage() {
               <div className="input-group"><label className="input-label">Category</label><select className="select" value={newBill.category} onChange={e => setNewBill({ ...newBill, category: e.target.value })}>{BILL_CATS.map(c => <option key={c}>{c}</option>)}</select></div>
               <div className="input-group"><label className="input-label">Recurrence</label><select className="select" value={newBill.recurrence} onChange={e => setNewBill({ ...newBill, recurrence: e.target.value })}><option>monthly</option><option>weekly</option><option>yearly</option><option>one-time</option></select></div>
             </div>
-            <div className="modal-footer"><button className="btn btn-secondary" onClick={() => setShowAddBill(false)}>Cancel</button><button className="btn btn-primary" onClick={addBill}>Add Bill</button></div>
+            <div className="modal-footer"><button className="btn btn-secondary" onClick={resetBill}>Cancel</button><button className="btn btn-primary" onClick={handleSubmitBill} disabled={isSaving}>{isSaving ? 'Saving...' : (editingBill ? 'Save Changes' : 'Add Bill')}</button></div>
           </div>
         </div>
       )}
@@ -199,7 +296,7 @@ export default function FinancesPage() {
       {showAddExpense && (
         <div className="modal-overlay" onClick={() => setShowAddExpense(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header"><h2>Add Expense</h2><button className="btn btn-ghost btn-icon" onClick={() => setShowAddExpense(false)}><X size={18} /></button></div>
+            <div className="modal-header"><h2>{editingExpense ? 'Edit Expense' : 'Add Expense'}</h2><button className="btn btn-ghost btn-icon" onClick={resetExpense}><X size={18} /></button></div>
             <div className="modal-body">
               <div className="input-group"><label className="input-label">Description</label><input className="input" value={newExpense.description} onChange={e => setNewExpense({ ...newExpense, description: e.target.value })} placeholder="e.g. Whole Foods" /></div>
               <div className="input-group"><label className="input-label">Amount ($)</label><input className="input" type="number" value={newExpense.amount} onChange={e => setNewExpense({ ...newExpense, amount: e.target.value })} placeholder="0.00" /></div>
@@ -207,7 +304,7 @@ export default function FinancesPage() {
               <div className="input-group"><label className="input-label">Category</label><select className="select" value={newExpense.category} onChange={e => setNewExpense({ ...newExpense, category: e.target.value })}>{EXPENSE_CATS.map(c => <option key={c}>{c}</option>)}</select></div>
               <div className="input-group"><label className="input-label">Paid By</label><select className="select" value={newExpense.paid_by} onChange={e => setNewExpense({ ...newExpense, paid_by: e.target.value })}>{members.map(m => <option key={m.id} value={m.id}>{m.full_name}</option>)}</select></div>
             </div>
-            <div className="modal-footer"><button className="btn btn-secondary" onClick={() => setShowAddExpense(false)}>Cancel</button><button className="btn btn-primary" onClick={handleAddExpense}>Add Expense</button></div>
+            <div className="modal-footer"><button className="btn btn-secondary" onClick={resetExpense}>Cancel</button><button className="btn btn-primary" onClick={handleSubmitExpense} disabled={isSaving}>{isSaving ? 'Saving...' : (editingExpense ? 'Save Changes' : 'Add Expense')}</button></div>
           </div>
         </div>
       )}
@@ -216,14 +313,14 @@ export default function FinancesPage() {
       {showAddBudget && (
         <div className="modal-overlay" onClick={() => setShowAddBudget(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header"><h2>Create Budget</h2><button className="btn btn-ghost btn-icon" onClick={() => setShowAddBudget(false)}><X size={18} /></button></div>
+            <div className="modal-header"><h2>{editingBudget ? 'Edit Budget' : 'Create Budget'}</h2><button className="btn btn-ghost btn-icon" onClick={resetBudget}><X size={18} /></button></div>
             <div className="modal-body">
               <div className="input-group"><label className="input-label">Budget Name</label><input className="input" value={newBudget.name} onChange={e => setNewBudget({ ...newBudget, name: e.target.value })} placeholder="e.g. Weekly Food Budget" /></div>
               <div className="input-group"><label className="input-label">Budget Amount ($)</label><input className="input" type="number" value={newBudget.amount} onChange={e => setNewBudget({ ...newBudget, amount: e.target.value })} placeholder="0.00" /></div>
               <div className="input-group"><label className="input-label">Period</label><select className="select" value={newBudget.period} onChange={e => setNewBudget({ ...newBudget, period: e.target.value })}>{PERIODS.map(p => <option key={p}>{p}</option>)}</select></div>
               <div className="input-group"><label className="input-label">Category</label><select className="select" value={newBudget.category} onChange={e => setNewBudget({ ...newBudget, category: e.target.value })}>{EXPENSE_CATS.map(c => <option key={c}>{c}</option>)}</select></div>
             </div>
-            <div className="modal-footer"><button className="btn btn-secondary" onClick={() => setShowAddBudget(false)}>Cancel</button><button className="btn btn-primary" onClick={addBudgetItem}>Create Budget</button></div>
+            <div className="modal-footer"><button className="btn btn-secondary" onClick={resetBudget}>Cancel</button><button className="btn btn-primary" onClick={handleSubmitBudget} disabled={isSaving}>{isSaving ? 'Saving...' : (editingBudget ? 'Save Changes' : 'Create Budget')}</button></div>
           </div>
         </div>
       )}
@@ -273,12 +370,15 @@ export default function FinancesPage() {
         .bi-meta, .ei-meta { font-size: 0.75rem; color: var(--text-tertiary); display: flex; align-items: center; gap: 4px; margin-top: 2px; }
         .bi-amount { font-size: 1.125rem; font-weight: 700; color: var(--accent-warm); }
         .ei-amount { font-size: 1rem; font-weight: 600; color: var(--error); }
+        .item-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s; }
+        .bill-item:hover .item-actions, .expense-item:hover .item-actions { opacity: 1; }
 
         .budgets-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
-        .budget-card { background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 16px; padding: 24px; }
+        .budget-card { background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 16px; padding: 24px; position: relative; }
         .budget-card.add-budget { border-style: dashed; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--text-muted); cursor: pointer; min-height: 160px; transition: all 0.2s; }
         .budget-card.add-budget:hover { border-color: var(--accent-primary); color: var(--accent-primary); }
-        .bc-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .bc-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .bc-actions { display: flex; gap: 4px; }
         .bc-name { font-weight: 600; }
         .bc-amounts { margin-bottom: 10px; }
         .bc-spent { font-size: 1.5rem; font-weight: 700; font-family: var(--font-display); }
