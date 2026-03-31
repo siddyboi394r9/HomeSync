@@ -290,10 +290,23 @@ export function AppProvider({ children }) {
     const tableName = tableMap[key];
     if (!tableName) return;
 
+    const creatorMap = {
+      groceryLists: 'added_by',
+      events: 'created_by',
+      expenses: 'paid_by',
+      chores: 'assigned_to',
+    };
+
+    const creatorCol = creatorMap[key];
+    const payload = { ...item, household_id: data.household.id };
+    if (creatorCol && session?.user?.id) {
+      payload[creatorCol] = session.user.id;
+    }
+
     try {
       const { error } = await supabase
         .from(tableName)
-        .insert([{ ...item, household_id: data.household.id, added_by: session?.user?.id }]);
+        .insert([payload]);
 
       if (error) throw error;
       // Note: Data UI update will be handled by Realtime Postgres changes
