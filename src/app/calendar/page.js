@@ -66,6 +66,7 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
   const [view, setView] = useState('month');
   
   const [newEvent, setNewEvent] = useState({ 
@@ -77,6 +78,45 @@ export default function CalendarPage() {
     location: '', 
     description: '' 
   });
+
+  const openEdit = (e) => {
+    const d = new Date(e.start_time);
+    const endD = new Date(e.end_time);
+    
+    const formatTime = (date) => {
+      const h = date.getHours();
+      const m = date.getMinutes();
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const displayH = h % 12 === 0 ? 12 : h % 12;
+      return `${displayH}:${String(m).padStart(2, '0')} ${ampm}`;
+    };
+
+    setNewEvent({
+      title: e.title,
+      date: e.start_time.split('T')[0],
+      startTime: formatTime(d),
+      endTime: formatTime(endD),
+      category: e.category,
+      location: e.location || '',
+      description: e.description || ''
+    });
+    setEditingEvent(e);
+    setShowAdd(true);
+  };
+
+  const openAdd = () => {
+    setNewEvent({ 
+      title: '', 
+      date: new Date().toISOString().split('T')[0], 
+      startTime: '9:00 AM', 
+      endTime: '10:00 AM', 
+      category: 'Social', 
+      location: '', 
+      description: '' 
+    });
+    setEditingEvent(null);
+    setShowAdd(true);
+  };
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -104,10 +144,9 @@ export default function CalendarPage() {
   const today = new Date();
   const isToday = (day) => day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
 
-  const handleAddEvent = async () => {
+  const handleSubmit = async () => {
     if (!newEvent.title.trim() || !newEvent.date) return;
     
-    // Combine date and time for Supabase
     const combine = (d, t) => {
       const [time, ampm] = t.split(' ');
       let [h, m] = time.split(':');
@@ -119,18 +158,32 @@ export default function CalendarPage() {
 
     const start_time = combine(newEvent.date, newEvent.startTime);
     const end_time = combine(newEvent.date, newEvent.endTime);
-    
     const color = COLORS[newEvent.category] || '#DC3545';
-    await addItem('events', { 
+    
+    const payload = { 
       title: newEvent.title, 
       start_time, 
       end_time, 
       category: newEvent.category, 
       location: newEvent.location, 
       color 
-    });
+    };
+
+    if (editingEvent) {
+      await updateItem('events', editingEvent.id, payload);
+    } else {
+      await addItem('events', payload);
+    }
     
     setShowAdd(false);
+    setEditingEvent(null);
+  };
+
+  const handleDelete = async () => {
+    if (!editingEvent) return;
+    await removeItem('events', editingEvent.id);
+    setShowAdd(false);
+    setEditingEvent(null);
   };
 
   // Chronological Grouping for List View
@@ -170,7 +223,7 @@ export default function CalendarPage() {
           <h1><CalIcon size={28} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 12 }} />Calendar</h1>
           <p>Your household schedule, perfectly in sync.</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowAdd(true)}><Plus size={18} /> New Event</button>
+        <button className="btn btn-primary" onClick={openAdd}><Plus size={18} /> New Event</button>
       </div>
 
       <div className="cal-nav">
@@ -211,7 +264,7 @@ export default function CalendarPage() {
                             style={{ '--bar-color': e.color }}
                             onClick={(ev) => {
                               ev.stopPropagation();
-                              // Could open edit modal here
+                              openEdit(e);
                             }}
                           >
                             {e.title}
@@ -243,7 +296,7 @@ export default function CalendarPage() {
                       <div className="item-time">
                         {new Date(e.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
                       </div>
-                      <div className="item-card" style={{ '--card-color': e.color }}>
+                        <div className="item-card" onClick={() => openEdit(e)} style={{ cursor: 'pointer', '--card-color': e.color }}>
                         <div className="item-main">
                           <span className="item-title">{e.title}</span>
                           {e.location && <span className="item-loc"><MapPin size={12} /> {e.location}</span>}
@@ -262,11 +315,11 @@ export default function CalendarPage() {
       )}
 
       {showAdd && (
-        <div className="modal-overlay" onClick={() => setShowAdd(false)}>
+        <div className="modal-overlay" onClick={() => { setShowAdd(false); setEditingEvent(null); }}>
           <div className="modal-content animate-pop" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Create Event</h2>
-              <button className="close-btn" onClick={() => setShowAdd(false)}><X size={20} /></button>
+              <h2>{editingEvent ? 'Edit Event' : 'Create Event'}</h2>
+              <button className="close-btn" onClick={() => { setShowAdd(false); setEditingEvent(null); }}><X size={20} /></button>
             </div>
             <div className="modal-body">
               <div className="input-group">
@@ -320,8 +373,13 @@ export default function CalendarPage() {
               </div>
             </div>
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowAdd(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleAddEvent}>Create Event</button>
+              <div className="footer-left">
+                {editingEvent && <button className="btn btn-danger-subtle" onClick={handleDelete}>Delete Event</button>}
+              </div>
+              <div className="footer-right">
+                <button className="btn btn-secondary" onClick={() => { setShowAdd(false); setEditingEvent(null); }}>Cancel</button>
+                <button className="btn btn-primary" onClick={handleSubmit}>{editingEvent ? 'Save Changes' : 'Create Event'}</button>
+              </div>
             </div>
           </div>
         </div>
