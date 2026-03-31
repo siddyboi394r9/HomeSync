@@ -120,6 +120,16 @@ export function AppProvider({ children }) {
     return () => authSub.unsubscribe();
   }, [fetchProfile]);
 
+  const loginWithGoogle = useCallback(async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/`,
+      },
+    });
+    if (error) throw error;
+  }, []);
+
   // SET UP REALTIME SUBSCRIPTIONS
   useEffect(() => {
     if (!data.household?.id) return;
@@ -207,10 +217,15 @@ export function AppProvider({ children }) {
 
       if (householdError) throw householdError;
 
+      // Ensure profile exists and has the household_id (handles OAuth users)
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({ household_id: household.id })
-        .eq('id', session.user.id);
+        .upsert({ 
+          id: session.user.id, 
+          email: session.user.email,
+          full_name: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
+          household_id: household.id 
+        });
 
       if (profileError) throw profileError;
 
@@ -234,10 +249,15 @@ export function AppProvider({ children }) {
 
       if (findError) throw new Error('Invite code not found');
 
+      // Ensure profile exists and has the household_id (handles OAuth users)
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ household_id: household.id })
-        .eq('id', session.user.id);
+        .upsert({ 
+          id: session.user.id, 
+          email: session.user.email,
+          full_name: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
+          household_id: household.id 
+        });
 
       if (updateError) throw updateError;
 
@@ -322,7 +342,7 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider value={{
       ...data, isAuthenticated: !!session, isLoading,
-      login, signup, logout, createHousehold, joinHousehold, updateData, addItem, removeItem, updateItem, setData
+      login, signup, logout, loginWithGoogle, createHousehold, joinHousehold, updateData, addItem, removeItem, updateItem, setData
     }}>
       {children}
     </AppContext.Provider>
