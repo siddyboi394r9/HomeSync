@@ -11,7 +11,13 @@ export default function AuthShell({ children }) {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated && pathname !== '/login') {
+    // If we're currently in an OAuth flow (as indicated by hash fragment or code in URL),
+    // don't redirect yet to prevent jumping to /login during code exchange.
+    const isAuthHandled = typeof window !== 'undefined' && 
+      (window.location.hash.includes('access_token') || 
+       window.location.search.includes('code='));
+
+    if (!isLoading && !isAuthenticated && pathname !== '/login' && !isAuthHandled) {
       router.push('/login');
     }
   }, [isAuthenticated, isLoading, pathname, router]);
