@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 export default function AuthShell({ children }) {
-  const { isAuthenticated, isLoading } = useApp();
+  const { isAuthenticated, isLoading, household } = useApp();
   const pathname = usePathname();
   const router = useRouter();
 
