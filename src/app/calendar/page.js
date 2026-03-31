@@ -100,7 +100,7 @@ function TimePicker({ value, onChange, label }) {
 }
 
 export default function CalendarPage() {
-  const { events, addItem, removeItem, isLoading } = useApp();
+  const { events, addItem, removeItem, updateItem, addNotification, isLoading } = useApp();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
