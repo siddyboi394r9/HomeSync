@@ -2,38 +2,52 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 
 export async function middleware(request) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  })
+  try {
+    let supabaseResponse = NextResponse.next({
+      request,
+    })
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({
-            request,
-          })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
-        },
-      },
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || ''
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() || ''
+
+    if (!supabaseUrl || !supabaseKey) {
+      // Missing environment vars, fail gracefully instead of crashing the Edge runtime
+      return supabaseResponse
     }
-  )
 
-  // IMPORTANT: Avoid writing any logic between createServerClient and
-  // getUser(). A simple mistake can make it very hard to debug
-  // issues with users being signed out.
+    const supabase = createServerClient(
+      supabaseUrl,
+      supabaseKey,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll()
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+            supabaseResponse = NextResponse.next({
+              request,
+            })
+            cookiesToSet.forEach(({ name, value, options }) =>
+              supabaseResponse.cookies.set(name, value, options)
+            )
+          },
+        },
+      }
+    )
 
-  await supabase.auth.getUser()
+    // IMPORTANT: Avoid writing any logic between createServerClient and
+    // getUser(). A simple mistake can make it very hard to debug
+    // issues with users being signed out.
+    await supabase.auth.getUser()
 
-  return supabaseResponse
+    return supabaseResponse
+
+  } catch (err) {
+    // Final failsafe - if anything throws synchronously or during await, don't block the routing
+    console.error('Middleware Crash:', err)
+    return NextResponse.next({ request })
+  }
 }
 
 export const config = {

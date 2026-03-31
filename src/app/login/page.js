@@ -11,7 +11,11 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
-  const [error, setError] = useState('');
+  
+  // Read any error thrown from the callback router during OAuth redirects
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const initialError = searchParams?.get('error') || '';
+  const [error, setError] = useState(initialError);
   
   // Household setup state
   const [setupMode, setSetupMode] = useState(null); // 'create' or 'join'
