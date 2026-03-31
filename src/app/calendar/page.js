@@ -57,7 +57,7 @@ export default function CalendarPage() {
       <div className="page-header">
         <div>
           <h1><CalIcon size={28} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 12 }} />Calendar</h1>
-          <p>Stay on top of your schedule — syncs with Google Calendar.</p>
+          <p>Stay on top of your schedule with the household calendar.</p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowAdd(true)}><Plus size={18} /> New Event</button>
       </div>
