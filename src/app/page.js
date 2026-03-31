@@ -41,14 +41,14 @@ export default function DashboardPage() {
     return <div className="loading-state">Syncing household...</div>;
   }
 
-  const pendingGroceries = groceryLists.reduce((sum, l) => sum + l.items.filter(i => !i.checked).length, 0);
-  const upcomingEvents = events.filter(e => new Date(e.start) > new Date()).slice(0, 3);
-  const pendingBills = bills.filter(b => b.status === 'pending');
-  const totalDue = pendingBills.reduce((s, b) => s + b.amount, 0);
-  const pendingChores = chores.filter(c => c.status === 'pending');
-  const unreadNotifs = notifications.filter(n => !n.read);
-  const recentMsgs = messages.slice(-3);
-  const totalSpent = expenses.reduce((s, e) => s + e.amount, 0);
+  const pendingGroceries = (groceryLists || []).reduce((sum, l) => sum + (l?.items || []).filter(i => !i.checked).length, 0);
+  const upcomingEvents = (events || []).filter(e => e?.start && new Date(e.start) > new Date()).slice(0, 3);
+  const pendingBills = (bills || []).filter(b => b?.status === 'pending');
+  const totalDue = pendingBills.reduce((s, b) => s + (Number(b?.amount) || 0), 0);
+  const pendingChores = (chores || []).filter(c => c?.status === 'pending');
+  const unreadNotifs = (notifications || []).filter(n => !n?.read);
+  const recentMsgs = (messages || []).slice(-3);
+  const totalSpent = (expenses || []).reduce((s, e) => s + (Number(e?.amount) || 0), 0);
 
   const firstName = (currentUser?.full_name || '').split(' ')[0] || 'there';
 
