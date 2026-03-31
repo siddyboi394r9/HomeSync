@@ -1,6 +1,7 @@
 import './globals.css';
 import { AppProvider } from '@/context/AppContext';
 import AuthShell from '@/components/AuthShell';
+import ToastContainer from '@/components/Toast';
 
 export const metadata = {
   title: 'HomeSync — Household Management for Couples',
@@ -13,6 +14,7 @@ export default function RootLayout({ children }) {
       <body>
         <AppProvider>
           <AuthShell>{children}</AuthShell>
+          <ToastContainer />
         </AppProvider>
       </body>
     </html>

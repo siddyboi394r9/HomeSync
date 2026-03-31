@@ -144,8 +144,11 @@ export default function CalendarPage() {
   const today = new Date();
   const isToday = (day) => day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
 
+  const [isSaving, setIsSaving] = useState(false);
+
   const handleSubmit = async () => {
-    if (!newEvent.title.trim() || !newEvent.date) return;
+    if (!newEvent.title.trim() || !newEvent.date || isSaving) return;
+    setIsSaving(true);
     
     const combine = (d, t) => {
       const [time, ampm] = t.split(' ');
@@ -169,21 +172,29 @@ export default function CalendarPage() {
       color 
     };
 
+    let success = false;
     if (editingEvent) {
-      await updateItem('events', editingEvent.id, payload);
+      success = await updateItem('events', editingEvent.id, payload);
     } else {
-      await addItem('events', payload);
+      success = await addItem('events', payload);
     }
     
-    setShowAdd(false);
-    setEditingEvent(null);
+    setIsSaving(false);
+    if (success) {
+      setShowAdd(false);
+      setEditingEvent(null);
+    }
   };
 
   const handleDelete = async () => {
-    if (!editingEvent) return;
-    await removeItem('events', editingEvent.id);
-    setShowAdd(false);
-    setEditingEvent(null);
+    if (!editingEvent || isSaving) return;
+    setIsSaving(true);
+    const success = await removeItem('events', editingEvent.id);
+    setIsSaving(false);
+    if (success) {
+      setShowAdd(false);
+      setEditingEvent(null);
+    }
   };
 
   // Chronological Grouping for List View

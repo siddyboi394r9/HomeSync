@@ -25,6 +25,15 @@ export function AppProvider({ children }) {
   const [data, setData] = useState(defaultData);
   const [session, setSession] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [notifications, setNotifications] = useState([]);
+
+  const addNotification = useCallback((type, message) => {
+    const id = Date.now();
+    setNotifications(prev => [...prev.slice(-4), { id, type, message }]);
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 5000);
+  }, []);
 
   const fetchAllData = useCallback(async (householdId) => {
     if (!householdId) return;
@@ -309,9 +318,12 @@ export function AppProvider({ children }) {
         .insert([payload]);
 
       if (error) throw error;
-      // Note: Data UI update will be handled by Realtime Postgres changes
+      addNotification('success', `Added to ${keyMap[key] || 'list'}`);
+      return true;
     } catch (error) {
       console.error(`Error adding item to ${tableName}:`, error);
+      addNotification('error', error.message || 'Failed to add item');
+      return false;
     }
   }, [data.household?.id, session]);
 
@@ -330,8 +342,12 @@ export function AppProvider({ children }) {
     try {
       const { error } = await supabase.from(tableName).delete().eq('id', id);
       if (error) throw error;
+      addNotification('success', 'Item removed');
+      return true;
     } catch (error) {
       console.error(`Error removing item from ${tableName}:`, error);
+      addNotification('error', error.message || 'Failed to remove item');
+      return false;
     }
   }, []);
 
@@ -350,15 +366,19 @@ export function AppProvider({ children }) {
     try {
       const { error } = await supabase.from(tableName).update(updates).eq('id', id);
       if (error) throw error;
+      addNotification('success', 'Changes saved');
+      return true;
     } catch (error) {
       console.error(`Error updating item in ${tableName}:`, error);
+      addNotification('error', error.message || 'Failed to save changes');
+      return false;
     }
   }, []);
 
   return (
     <AppContext.Provider value={{
-      ...data, isAuthenticated: !!session, isLoading,
-      login, signup, logout, loginWithGoogle, createHousehold, joinHousehold, updateData, addItem, removeItem, updateItem, setData
+      ...data, isAuthenticated: !!session, isLoading, notifications,
+      login, signup, logout, loginWithGoogle, createHousehold, joinHousehold, updateData, addItem, removeItem, updateItem, addNotification, setData
     }}>
       {children}
     </AppContext.Provider>
