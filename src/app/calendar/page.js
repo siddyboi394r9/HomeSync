@@ -37,7 +37,7 @@ function TimePicker({ value, onChange, label }) {
     if (clean === 'now') {
       const now = new Date();
       const h = now.getHours();
-      const m = Math.round(now.getMinutes() / 15) * 15;
+      let m = Math.round(now.getMinutes() / 15) * 15;
       const ampm = h >= 12 ? 'PM' : 'AM';
       let displayH = h % 12 === 0 ? 12 : h % 12;
       if (m === 60) { displayH++; m = 0; }
