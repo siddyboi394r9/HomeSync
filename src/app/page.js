@@ -110,16 +110,16 @@ export default function DashboardPage() {
             <Link href="/finances" className="card-link">View All <ChevronRight size={14} /></Link>
           </div>
           <div className="card-body">
-            {pendingBills.slice(0, 4).map(bill => (
-              <div key={bill.id} className="bill-row">
+            {(pendingBills || []).slice(0, 4).map(bill => (
+              <div key={bill?.id} className="bill-row">
                 <div className="bill-info">
-                  <span className="bill-name">{bill.name}</span>
+                  <span className="bill-name">{bill?.name || 'Unnamed Bill'}</span>
                   <span className="bill-date">
                     <Clock size={13} />
-                    Due {new Date(bill.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    Due {bill?.dueDate ? new Date(bill.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'No Date'}
                   </span>
                 </div>
-                <span className="bill-amount">${bill.amount.toFixed(2)}</span>
+                <span className="bill-amount">${(Number(bill?.amount) || 0).toFixed(2)}</span>
               </div>
             ))}
           </div>
@@ -132,14 +132,17 @@ export default function DashboardPage() {
             <Link href="/chat" className="card-link">Open Chat <ChevronRight size={14} /></Link>
           </div>
           <div className="card-body">
-            {recentMsgs.map(msg => (
-              <div key={msg.id} className="msg-row">
-                <div className="msg-avatar" style={{ background: msg.sender === 'Siddharth' ? 'rgba(220,53,69,0.15)' : 'rgba(99,179,237,0.15)', color: msg.sender === 'Siddharth' ? '#DC3545' : '#63B3ED' }}>
-                  {msg.sender[0]}
+            {(recentMsgs || []).map(msg => (
+              <div key={msg?.id} className="msg-row">
+                <div className="msg-avatar" style={{ 
+                  background: msg?.sender === 'Siddharth' ? 'rgba(220,53,69,0.15)' : 'rgba(99,179,237,0.15)', 
+                  color: msg?.sender === 'Siddharth' ? '#DC3545' : '#63B3ED' 
+                }}>
+                  {(msg?.sender || 'U')[0]}
                 </div>
                 <div className="msg-content">
-                  <span className="msg-sender">{msg.sender}</span>
-                  <span className="msg-text">{msg.content}</span>
+                  <span className="msg-sender">{msg?.sender || 'Someone'}</span>
+                  <span className="msg-text">{msg?.content || '...'}</span>
                 </div>
               </div>
             ))}
@@ -152,10 +155,10 @@ export default function DashboardPage() {
             <h3><Bell size={18} /> Notifications</h3>
           </div>
           <div className="card-body">
-            {notifications.map(n => (
-              <div key={n.id} className={`notif-row ${n.read ? 'read' : ''}`}>
-                {n.read ? <CheckCircle2 size={16} className="notif-icon read" /> : <AlertCircle size={16} className="notif-icon" />}
-                <span>{n.message}</span>
+            {(notifications || []).map(n => (
+              <div key={n?.id} className={`notif-row ${n?.read ? 'read' : ''}`}>
+                {n?.read ? <CheckCircle2 size={16} className="notif-icon read" /> : <AlertCircle size={16} className="notif-icon" />}
+                <span>{n?.message || 'New notification'}</span>
               </div>
             ))}
           </div>
