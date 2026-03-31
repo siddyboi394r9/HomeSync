@@ -255,6 +255,11 @@ export default function LoginPage() {
         <div className="login-tagline">
           <Heart size={14} style={{ color: 'var(--accent-primary)' }} />
           <span>Built for couples who run a home together</span>
+          <div style={{ marginTop: '12px', opacity: 0.6, fontSize: '0.75rem' }}>
+            <button onClick={handleSignOut} style={{ textDecoration: 'underline', background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}>
+              Sign Out & Reset Session
+            </button>
+          </div>
         </div>
       </div>
 
