@@ -122,19 +122,25 @@ export default function CalendarPage() {
     const endD = new Date(e.end_time);
     
     const formatTime = (date) => {
-      const h = date.getHours();
-      const m = date.getMinutes();
-      const ampm = h >= 12 ? 'PM' : 'AM';
-      const displayH = h % 12 === 0 ? 12 : h % 12;
-      return `${displayH}:${String(m).padStart(2, '0')} ${ampm}`;
+      try {
+        if (!date || isNaN(date.getTime())) return '12:00 PM';
+        const h = date.getHours();
+        const m = date.getMinutes();
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        const displayH = h % 12 === 0 ? 12 : h % 12;
+        return `${displayH}:${String(m).padStart(2, '0')} ${ampm}`;
+      } catch (err) {
+        console.error('formatTime error:', err);
+        return '12:00 PM';
+      }
     };
 
     setNewEvent({
-      title: e.title,
-      date: e.start_time.split('T')[0],
+      title: e.title || '',
+      date: (e.start_time || '').split('T')[0] || new Date().toISOString().split('T')[0],
       startTime: formatTime(d),
       endTime: formatTime(endD),
-      category: e.category,
+      category: e.category || 'Social',
       location: e.location || '',
       description: e.description || ''
     });
@@ -189,38 +195,51 @@ export default function CalendarPage() {
     setIsSaving(true);
     
     const combine = (d, t) => {
-      const [time, ampm] = t.split(' ');
-      let [h, m] = time.split(':');
-      h = parseInt(h);
-      if (ampm === 'PM' && h < 12) h += 12;
-      if (ampm === 'AM' && h === 12) h = 0;
-      return `${d}T${String(h).padStart(2, '0')}:${m}:00`;
+      try {
+        const parts = (t || '12:00 PM').trim().split(' ');
+        const time = parts[0];
+        const ampm = parts[1] || 'AM';
+        let [h, m] = time.split(':');
+        h = parseInt(h) || 0;
+        m = parseInt(m) || 0;
+        if (ampm === 'PM' && h < 12) h += 12;
+        if (ampm === 'AM' && h === 12) h = 0;
+        return `${d}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
+      } catch (err) {
+        console.error('Combine error:', err);
+        return `${d}T12:00:00`;
+      }
     };
 
-    const start_time = combine(newEvent.date, newEvent.startTime);
-    const end_time = combine(newEvent.date, newEvent.endTime);
-    const color = COLORS[newEvent.category] || '#DC3545';
-    
-    const payload = { 
-      title: newEvent.title, 
-      start_time, 
-      end_time, 
-      category: newEvent.category, 
-      location: newEvent.location, 
-      color 
-    };
+    try {
+      const payload = { 
+        title: newEvent.title, 
+        start_time: combine(newEvent.date, newEvent.startTime), 
+        end_time: combine(newEvent.date, newEvent.endTime), 
+        category: newEvent.category, 
+        location: newEvent.location, 
+        description: newEvent.description,
+        color: COLORS[newEvent.category] || '#DC3545'
+      };
 
-    let success = false;
-    if (editingEvent) {
-      success = await updateItem('events', editingEvent.id, payload);
-    } else {
-      success = await addItem('events', payload);
-    }
-    
-    setIsSaving(false);
-    if (success) {
-      setShowAdd(false);
-      setEditingEvent(null);
+      let success = false;
+      if (editingEvent) {
+        success = await updateItem('events', editingEvent.id, payload);
+      } else {
+        success = await addItem('events', payload);
+      }
+      
+      if (success) {
+        setShowAdd(false);
+        setEditingEvent(null);
+      }
+    } catch (err) {
+      console.error('Submit crash:', err);
+      if (typeof addNotification === 'function') {
+        addNotification('error', 'A critical error occurred while saving.');
+      }
+    } finally {
+      setIsSaving(false);
     }
   };
 
