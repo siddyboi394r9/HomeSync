@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Home, Mail, Lock, ArrowRight, Heart, User, Plus, Users, LayoutDashboard } from 'lucide-react';
 
 export default function LoginPage() {
-  const { login, signup, createHousehold, joinHousehold, isAuthenticated, currentUser, household } = useApp();
+  const { login, signup, loginWithGoogle, logout, createHousehold, joinHousehold, isAuthenticated, currentUser, household } = useApp();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
