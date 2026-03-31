@@ -13,15 +13,15 @@ export default function GroceryPage() {
   const [filterCat, setFilterCat] = useState('All');
   const [search, setSearch] = useState('');
 
-  const currentList = groceryLists[0]; // Using the first list mapped from grocery_items
-  const filteredItems = currentList?.items.filter(item => {
-    const matchCat = filterCat === 'All' || item.category === filterCat;
-    const matchSearch = item.name.toLowerCase().includes(search.toLowerCase());
+  const currentList = groceryLists?.[0]; // Using the first list mapped from grocery_items
+  const filteredItems = (currentList?.items || []).filter(item => {
+    const matchCat = filterCat === 'All' || item?.category === filterCat;
+    const matchSearch = item?.name?.toLowerCase().includes(search.toLowerCase());
     return matchCat && matchSearch;
-  }) || [];
+  });
 
-  const checkedCount = currentList?.items.filter(i => i.checked).length || 0;
-  const totalCount = currentList?.items.length || 0;
+  const checkedCount = (currentList?.items || []).filter(i => i.checked).length;
+  const totalCount = currentList?.items?.length || 0;
 
   const toggleItem = async (itemId, currentStatus) => {
     await updateItem('groceryLists', itemId, { checked: !currentStatus });

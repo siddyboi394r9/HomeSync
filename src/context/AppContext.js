@@ -164,8 +164,8 @@ export function AppProvider({ children }) {
 
           // SPECIAL HANDLING FOR GROCERY LIST (Nested)
           if (key === 'groceryLists') {
-            const list = prev.groceryLists[0];
-            let newItems = [...list.items];
+            const list = prev.groceryLists[0] || { id: 'main', name: 'Household Groceries', items: [] };
+            let newItems = [...(list.items || [])];
             if (eventType === 'INSERT') newItems.push(newItem);
             if (eventType === 'UPDATE') newItems = newItems.map(i => i.id === newItem.id ? newItem : i);
             if (eventType === 'DELETE') newItems = newItems.filter(i => i.id !== oldItem.id);

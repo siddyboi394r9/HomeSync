@@ -20,7 +20,7 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { logout } = useApp();
+  const { logout, household, currentUser } = useApp();
   
   // sidebarState: 'expanded' or 'collapsed' (Gmail style)
   const [sidebarState, setSidebarState] = useState('expanded');
@@ -95,10 +95,15 @@ export default function Sidebar() {
           {isExpanded && household && (
             <div className="household-info">
               <div className="hi-label">Household</div>
-              <div className="hi-name">{household.name}</div>
+              <div className="hi-name">{household?.name || 'My Household'}</div>
               <div className="hi-code">
-                <span>Code: <strong>{household.invite_code}</strong></span>
-                <button className="copy-btn" onClick={() => navigator.clipboard.writeText(household.invite_code)} title="Copy Code">
+                <span>Code: <strong>{household?.invite_code || '---'}</strong></span>
+                <button 
+                  className="copy-btn" 
+                  onClick={() => household?.invite_code && navigator.clipboard.writeText(household.invite_code)} 
+                  disabled={!household?.invite_code}
+                  title="Copy Code"
+                >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                 </button>
               </div>
