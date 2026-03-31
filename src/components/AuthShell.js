@@ -20,7 +20,12 @@ export default function AuthShell({ children }) {
     if (!isLoading && !isAuthenticated && pathname !== '/login' && !isAuthHandled) {
       router.push('/login');
     }
-  }, [isAuthenticated, isLoading, pathname, router]);
+    
+    // If authenticated but no household, redirect to login page for setup
+    if (!isLoading && isAuthenticated && !household && pathname !== '/login') {
+      router.push('/login');
+    }
+  }, [isAuthenticated, isLoading, household, pathname, router]);
 
   if (isLoading) {
     return (
@@ -39,7 +44,9 @@ export default function AuthShell({ children }) {
 
   if (pathname === '/login') return children;
 
+  // Protect all other routes
   if (!isAuthenticated) return null;
+  if (!household) return null; // Wait for setup redirect
 
   return (
     <div className="app-shell">

@@ -50,7 +50,7 @@ export default function DashboardPage() {
   const recentMsgs = messages.slice(-3);
   const totalSpent = expenses.reduce((s, e) => s + e.amount, 0);
 
-  const firstName = currentUser?.full_name?.split(' ')[0] || 'there';
+  const firstName = (currentUser?.full_name || '').split(' ')[0] || 'there';
 
   return (
     <div className="dashboard">
