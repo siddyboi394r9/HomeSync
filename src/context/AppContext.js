@@ -254,9 +254,7 @@ export function AppProvider({ children }) {
     
     try {
       const { data: household, error: findError } = await supabase
-        .from('households')
-        .select('*')
-        .eq('invite_code', inviteCode.toUpperCase())
+        .rpc('get_household_by_invite', { code: inviteCode.toUpperCase() })
         .single();
 
       if (findError) throw new Error('Invite code not found');
