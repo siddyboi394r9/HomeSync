@@ -20,9 +20,43 @@ const TIME_OPTIONS = Array.from({ length: 96 }, (_, i) => {
 
 function TimePicker({ value, onChange, label }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [inputValue, setInputValue] = useState(value);
   const dropdownRef = useRef(null);
 
-  // Close dropdown on click outside
+  // Sync internal input when value changes from outside
+  useEffect(() => {
+    setInputValue(value);
+  }, [value]);
+
+  // Fuzzy search / Typing shortcut logic
+  const handleInputChange = (val) => {
+    setInputValue(val);
+    const clean = val.toLowerCase().replace(/\s/g, '');
+    
+    // Quick shortcuts
+    if (clean === 'now') {
+      const now = new Date();
+      const h = now.getHours();
+      const m = Math.round(now.getMinutes() / 15) * 15;
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      let displayH = h % 12 === 0 ? 12 : h % 12;
+      if (m === 60) { displayH++; m = 0; }
+      onChange(`${displayH}:${String(m).padStart(2, '0')} ${ampm}`);
+      return;
+    }
+
+    // Try to match from options
+    const match = TIME_OPTIONS.find(opt => {
+      const optClean = opt.toLowerCase().replace(/\s/g, '').replace(':', '');
+      const valClean = clean.replace(':', '');
+      return optClean.startsWith(valClean);
+    });
+
+    if (match && clean.length >= 2) {
+      onChange(match);
+    }
+  };
+
   useEffect(() => {
     const clickOut = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setIsOpen(false);
@@ -34,13 +68,17 @@ function TimePicker({ value, onChange, label }) {
   return (
     <div className="time-picker-wrapper" ref={dropdownRef}>
       <label className="input-label">{label}</label>
-      <input 
-        className="input" 
-        value={value} 
-        onFocus={() => setIsOpen(true)}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="e.g. 9:00 AM"
-      />
+      <div className="time-input-group">
+        <Clock size={16} className="input-icon" />
+        <input 
+          className="input" 
+          value={inputValue} 
+          onFocus={() => setIsOpen(true)}
+          onChange={(e) => handleInputChange(e.target.value)}
+          onBlur={() => setInputValue(value)} // Revert to confirmed value if no match was picked
+          placeholder="e.g. 9:00 AM"
+        />
+      </div>
       {isOpen && (
         <div className="time-dropdown custom-scrollbar">
           {TIME_OPTIONS.map(time => (
@@ -268,20 +306,35 @@ export default function CalendarPage() {
                     <>
                       <span className="day-number">{day}</span>
                       <div className="day-events">
-                        {dayEvents.slice(0, 3).map(e => (
-                          <div 
-                            key={e.id} 
-                            className="event-bar" 
-                            style={{ '--bar-color': e.color }}
-                            onClick={(ev) => {
-                              ev.stopPropagation();
-                              openEdit(e);
-                            }}
-                          >
-                            {e.title}
+                        {dayEvents.map((e, i) => {
+                          if (i >= 3) return null;
+                          return (
+                            <div 
+                              key={e.id} 
+                              className="event-bar animate-in" 
+                              style={{ 
+                                '--bar-color': e.color,
+                                animationDelay: `${i * 0.05}s`
+                              }}
+                              onClick={(ev) => {
+                                ev.stopPropagation();
+                                openEdit(e);
+                              }}
+                            >
+                              <span className="bar-dot"></span>
+                              <span className="bar-title">{e.title}</span>
+                            </div>
+                          );
+                        })}
+                        {dayEvents.length > 3 && (
+                          <div className="more-count" onClick={(ev) => {
+                            ev.stopPropagation();
+                            setSelectedDate(day);
+                            setView('list');
+                          }}>
+                            +{dayEvents.length - 3} more
                           </div>
-                        ))}
-                        {dayEvents.length > 3 && <div className="more-count">+{dayEvents.length - 3} more</div>}
+                        )}
                       </div>
                     </>
                   )}

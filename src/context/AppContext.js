@@ -159,40 +159,40 @@ export function AppProvider({ children }) {
       .on('postgres_changes', { event: '*', schema: 'public', filter: `household_id=eq.${data.household.id}` }, (payload) => {
         const { table, eventType, new: newItem, old: oldItem } = payload;
         
-        setData(prev => {
-          const keyMap = {
-            'grocery_items': 'groceryLists',
-            'chores': 'chores',
-            'events': 'events',
-            'bills': 'bills',
-            'expenses': 'expenses',
-            'profiles': 'members'
-          };
-          const key = keyMap[table];
-          if (!key) return prev;
-
-          // SPECIAL HANDLING FOR GROCERY LIST (Nested)
-          if (key === 'groceryLists') {
-            const list = prev.groceryLists[0] || { id: 'main', name: 'Household Groceries', items: [] };
-            let newItems = [...(list.items || [])];
-            if (eventType === 'INSERT') newItems.push(newItem);
-            if (eventType === 'UPDATE') newItems = newItems.map(i => i.id === newItem.id ? newItem : i);
-            if (eventType === 'DELETE') newItems = newItems.filter(i => i.id !== oldItem.id);
-            
-            return {
-              ...prev,
-              groceryLists: [{ ...list, items: newItems }]
+          setData(prev => {
+            const keyMap = {
+              'grocery_items': 'groceryLists',
+              'chores': 'chores',
+              'events': 'events',
+              'bills': 'bills',
+              'expenses': 'expenses',
+              'profiles': 'members'
             };
-          }
+            const key = keyMap[table];
+            if (!key) return prev;
 
-          // GENERAL HANDLING FOR OTHER ARRAYS
-          let newArray = [...prev[key]];
-          if (eventType === 'INSERT') newArray.push(newItem);
-          if (eventType === 'UPDATE') newArray = newArray.map(i => i.id === newItem.id ? newItem : i);
-          if (eventType === 'DELETE') newArray = newArray.filter(i => i.id !== oldItem.id);
-          
-          return { ...prev, [key]: newArray };
-        });
+            // SPECIAL HANDLING FOR GROCERY LIST (Nested)
+            if (key === 'groceryLists') {
+              const list = prev.groceryLists?.[0] || { id: 'main', name: 'Household Groceries', items: [] };
+              let newItems = Array.isArray(list.items) ? [...list.items] : [];
+              if (eventType === 'INSERT') newItems.push(newItem);
+              if (eventType === 'UPDATE') newItems = newItems.map(i => i.id === newItem.id ? { ...i, ...newItem } : i);
+              if (eventType === 'DELETE') newItems = newItems.filter(i => i.id !== oldItem.id);
+              
+              return {
+                ...prev,
+                groceryLists: [{ ...list, items: newItems }]
+              };
+            }
+
+            // GENERAL HANDLING FOR OTHER ARRAYS
+            let newArray = Array.isArray(prev[key]) ? [...prev[key]] : [];
+            if (eventType === 'INSERT') newArray.push(newItem);
+            if (eventType === 'UPDATE') newArray = newArray.map(i => i.id === newItem.id ? { ...i, ...newItem } : i);
+            if (eventType === 'DELETE') newArray = newArray.filter(i => (oldItem && i.id === oldItem.id) ? false : true);
+            
+            return { ...prev, [key]: newArray };
+          });
       })
       .subscribe();
 
@@ -294,6 +294,14 @@ export function AppProvider({ children }) {
       events: 'events',
       bills: 'bills',
       expenses: 'expenses'
+    };
+
+    const keyMap = {
+      groceryLists: 'Groceries',
+      chores: 'Chores',
+      events: 'Calendar',
+      bills: 'Bills',
+      expenses: 'Finances'
     };
 
     const tableName = tableMap[key];
