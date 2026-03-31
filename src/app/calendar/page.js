@@ -1,22 +1,82 @@
 'use client';
-import { useState } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
-import { Calendar as CalIcon, Plus, ChevronLeft, ChevronRight, X, MapPin, Clock, Tag } from 'lucide-react';
+import { Calendar as CalIcon, Plus, ChevronLeft, ChevronRight, X, MapPin, Clock, Tag, Search, List } from 'lucide-react';
+import './calendar.css';
 
 const CATEGORIES = ['Social', 'Medical', 'Work', 'Travel', 'Household', 'Personal'];
 const COLORS = { Social: '#DC3545', Medical: '#63B3ED', Work: '#ECC94B', Travel: '#48BB78', Household: '#ED8936', Personal: '#ED64A6' };
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
+// Generate 15-minute increments for the time picker
+const TIME_OPTIONS = Array.from({ length: 96 }, (_, i) => {
+  const h = Math.floor(i / 4);
+  const m = (i % 4) * 15;
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const displayH = h % 12 === 0 ? 12 : h % 12;
+  return `${displayH}:${String(m).padStart(2, '0')} ${ampm}`;
+});
+
+function TimePicker({ value, onChange, label }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const clickOut = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setIsOpen(false);
+    };
+    document.addEventListener('mousedown', clickOut);
+    return () => document.removeEventListener('mousedown', clickOut);
+  }, []);
+
+  return (
+    <div className="time-picker-wrapper" ref={dropdownRef}>
+      <label className="input-label">{label}</label>
+      <input 
+        className="input" 
+        value={value} 
+        onFocus={() => setIsOpen(true)}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="e.g. 9:00 AM"
+      />
+      {isOpen && (
+        <div className="time-dropdown custom-scrollbar">
+          {TIME_OPTIONS.map(time => (
+            <div 
+              key={time} 
+              className={`time-option ${value === time ? 'active' : ''}`}
+              onClick={() => {
+                onChange(time);
+                setIsOpen(false);
+              }}
+            >
+              {time}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CalendarPage() {
   const { events, addItem, removeItem, isLoading } = useApp();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
-  const [newEvent, setNewEvent] = useState({ title: '', start: '', end: '', category: 'Social', location: '', description: '' });
   const [view, setView] = useState('month');
-
-  if (isLoading) return <div className="loading-state">Syncing calendar...</div>;
+  
+  const [newEvent, setNewEvent] = useState({ 
+    title: '', 
+    date: new Date().toISOString().split('T')[0], 
+    startTime: '9:00 AM', 
+    endTime: '10:00 AM', 
+    category: 'Social', 
+    location: '', 
+    description: '' 
+  });
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -27,183 +87,245 @@ export default function CalendarPage() {
   const next = () => setCurrentDate(new Date(year, month + 1, 1));
 
   const getEventsForDate = (day) => {
-    const d = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return (events || []).filter(e => e.start?.startsWith(d));
+    const dStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return (events || []).filter(e => {
+      const eDate = e.start?.split('T')[0];
+      return eDate === dStr;
+    }).sort((a, b) => new Date(a.start) - new Date(b.start));
   };
 
-  const calendarDays = [];
-  for (let i = 0; i < firstDay; i++) calendarDays.push(null);
-  for (let d = 1; d <= daysInMonth; d++) calendarDays.push(d);
+  const calendarDays = useMemo(() => {
+    const cells = [];
+    for (let i = 0; i < firstDay; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+    return cells;
+  }, [firstDay, daysInMonth]);
 
   const today = new Date();
   const isToday = (day) => day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
 
-  const dayEvents = selectedDate ? getEventsForDate(selectedDate) : [];
-
   const handleAddEvent = async () => {
-    if (!newEvent.title.trim() || !newEvent.start) return;
+    if (!newEvent.title.trim() || !newEvent.date) return;
+    
+    // Combine date and time for Supabase
+    const combine = (d, t) => {
+      const [time, ampm] = t.split(' ');
+      let [h, m] = time.split(':');
+      h = parseInt(h);
+      if (ampm === 'PM' && h < 12) h += 12;
+      if (ampm === 'AM' && h === 12) h = 0;
+      return `${d}T${String(h).padStart(2, '0')}:${m}:00`;
+    };
+
+    const start = combine(newEvent.date, newEvent.startTime);
+    const end = combine(newEvent.date, newEvent.endTime);
+    
     const color = COLORS[newEvent.category] || '#DC3545';
-    await addItem('events', { ...newEvent, color });
-    setNewEvent({ title: '', start: '', end: '', category: 'Social', location: '', description: '' });
+    await addItem('events', { 
+      title: newEvent.title, 
+      start, 
+      end, 
+      category: newEvent.category, 
+      location: newEvent.location, 
+      color 
+    });
+    
     setShowAdd(false);
   };
 
-  const handleRemoveEvent = async (id) => {
-    await removeItem('events', id);
-  };
+  // Chronological Grouping for List View
+  const groupedEvents = useMemo(() => {
+    const upcoming = (events || [])
+      .filter(e => new Date(e.start) >= new Date().setHours(0,0,0,0))
+      .sort((a, b) => new Date(a.start) - new Date(b.start));
+
+    const groups = [];
+    let currentLabel = '';
+
+    upcoming.forEach(e => {
+      const d = new Date(e.start);
+      const today = new Date();
+      let label = '';
+      
+      if (d.toDateString() === today.toDateString()) label = 'Today';
+      else if (d.toDateString() === new Date(today.setDate(today.getDate() + 1)).toDateString()) label = 'Tomorrow';
+      else label = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', weekday: 'long' });
+
+      if (label !== currentLabel) {
+        groups.push({ label, items: [e] });
+        currentLabel = label;
+      } else {
+        groups[groups.length - 1].items.push(e);
+      }
+    });
+    return groups;
+  }, [events]);
+
+  if (isLoading) return <div className="loading-state">Syncing calendar...</div>;
 
   return (
     <div className="calendar-page">
       <div className="page-header">
         <div>
           <h1><CalIcon size={28} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 12 }} />Calendar</h1>
-          <p>Stay on top of your schedule with the household calendar.</p>
+          <p>Your household schedule, perfectly in sync.</p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowAdd(true)}><Plus size={18} /> New Event</button>
       </div>
 
-      {/* Calendar Navigation */}
       <div className="cal-nav">
-        <button className="btn btn-ghost btn-icon" onClick={prev}><ChevronLeft size={20} /></button>
-        <h2>{MONTHS[month]} {year}</h2>
-        <button className="btn btn-ghost btn-icon" onClick={next}><ChevronRight size={20} /></button>
-        <div className="cal-views">
-          <button className={`tab ${view === 'month' ? 'active' : ''}`} onClick={() => setView('month')}>Month</button>
-          <button className={`tab ${view === 'list' ? 'active' : ''}`} onClick={() => setView('list')}>List</button>
+        <div className="nav-controls">
+          <button className="btn-icon-round" onClick={prev}><ChevronLeft size={20} /></button>
+          <h2>{MONTHS[month]} {year}</h2>
+          <button className="btn-icon-round" onClick={next}><ChevronRight size={20} /></button>
+          <button className="btn-today" onClick={() => setCurrentDate(new Date())}>Today</button>
+        </div>
+        <div className="view-switcher">
+          <button className={view === 'month' ? 'active' : ''} onClick={() => setView('month')}>Month</button>
+          <button className={view === 'list' ? 'active' : ''} onClick={() => setView('list')}>Agenda</button>
         </div>
       </div>
 
       {view === 'month' ? (
-        <div className="cal-grid-wrapper">
-          {/* Day headers */}
-          <div className="cal-day-headers">
-            {DAYS.map(d => <div key={d} className="day-header">{d}</div>)}
+        <div className="month-view">
+          <div className="days-header">
+            {DAYS.map(d => <div key={d}>{d}</div>)}
           </div>
-          {/* Calendar grid */}
-          <div className="cal-grid">
-            {calendarDays.map((day, idx) => (
-              <div key={idx} className={`cal-cell ${day ? 'has-day' : ''} ${isToday(day) ? 'today' : ''} ${selectedDate === day ? 'selected' : ''}`} onClick={() => day && setSelectedDate(day)}>
-                {day && (
-                  <>
-                    <span className="cell-day">{day}</span>
-                    <div className="cell-dots">
-                      {getEventsForDate(day).slice(0, 3).map(e => (
-                        <div key={e.id} className="cell-dot" style={{ background: e.color }} title={e.title} />
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            ))}
+          <div className="days-grid">
+            {calendarDays.map((day, idx) => {
+              const dayEvents = day ? getEventsForDate(day) : [];
+              return (
+                <div 
+                  key={idx} 
+                  className={`day-cell ${day ? 'active' : ''} ${isToday(day) ? 'is-today' : ''} ${selectedDate === day ? 'is-selected' : ''}`}
+                  onClick={() => day && setSelectedDate(day)}
+                >
+                  {day && (
+                    <>
+                      <span className="day-number">{day}</span>
+                      <div className="day-events">
+                        {dayEvents.slice(0, 3).map(e => (
+                          <div 
+                            key={e.id} 
+                            className="event-bar" 
+                            style={{ '--bar-color': e.color }}
+                            onClick={(ev) => {
+                              ev.stopPropagation();
+                              // Could open edit modal here
+                            }}
+                          >
+                            {e.title}
+                          </div>
+                        ))}
+                        {dayEvents.length > 3 && <div className="more-count">+{dayEvents.length - 3} more</div>}
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       ) : (
-        <div className="event-list-view">
-          {(events || []).sort((a, b) => new Date(a.start) - new Date(b.start)).map(event => (
-            <div key={event.id} className="event-list-item">
-              <div className="eli-color" style={{ background: event.color }} />
-              <div className="eli-info">
-                <span className="eli-title">{event.title}</span>
-                <span className="eli-time">
-                  {new Date(event.start).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                  {' · '}{new Date(event.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                </span>
-                {event.location && <span className="eli-loc"><MapPin size={12} /> {event.location}</span>}
-              </div>
-              <span className="badge" style={{ background: `${event.color}20`, color: event.color }}>{event.category}</span>
-              <button className="btn btn-ghost btn-icon sm" onClick={() => handleRemoveEvent(event.id)}><X size={14} /></button>
+        <div className="agenda-view">
+          {groupedEvents.length === 0 ? (
+            <div className="empty-state">
+              <CalIcon size={48} />
+              <p>No upcoming events scheduled.</p>
             </div>
-          ))}
-        </div>
-      )}
-
-      {/* Selected Day Detail */}
-      {selectedDate && (
-        <div className="day-detail">
-          <h3>{MONTHS[month]} {selectedDate}, {year}</h3>
-          {dayEvents.length === 0 ? (
-            <p className="empty-text">No events on this day.</p>
           ) : (
-            dayEvents.map(e => (
-              <div key={e.id} className="detail-event">
-                <div className="de-color" style={{ background: e.color }} />
-                <div className="de-info">
-                  <span className="de-title">{e.title}</span>
-                  <span className="de-time"><Clock size={13} /> {new Date(e.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}{e.end ? ` - ${new Date(e.end).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` : ''}</span>
-                  {e.location && <span className="de-loc"><MapPin size={13} /> {e.location}</span>}
+            groupedEvents.map(group => (
+              <div key={group.label} className="agenda-group">
+                <div className="group-label">{group.label}</div>
+                <div className="group-items">
+                  {group.items.map(e => (
+                    <div key={e.id} className="agenda-item">
+                      <div className="item-time">
+                        {new Date(e.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                      </div>
+                      <div className="item-card" style={{ '--card-color': e.color }}>
+                        <div className="item-main">
+                          <span className="item-title">{e.title}</span>
+                          {e.location && <span className="item-loc"><MapPin size={12} /> {e.location}</span>}
+                        </div>
+                        <div className="item-actions">
+                          <button className="del-btn" onClick={() => removeItem('events', e.id)}><X size={14} /></button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <button className="btn btn-ghost btn-icon sm" onClick={() => handleRemoveEvent(e.id)}><X size={14} /></button>
               </div>
             ))
           )}
         </div>
       )}
 
-      {/* Add Event Modal */}
       {showAdd && (
         <div className="modal-overlay" onClick={() => setShowAdd(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header"><h2>New Event</h2><button className="btn btn-ghost btn-icon" onClick={() => setShowAdd(false)}><X size={18} /></button></div>
-            <div className="modal-body">
-              <div className="input-group"><label className="input-label">Event Title</label><input className="input" value={newEvent.title} onChange={e => setNewEvent({ ...newEvent, title: e.target.value })} placeholder="e.g. Date Night" /></div>
-              <div className="input-group"><label className="input-label">Start</label><input className="input" type="datetime-local" value={newEvent.start} onChange={e => setNewEvent({ ...newEvent, start: e.target.value })} /></div>
-              <div className="input-group"><label className="input-label">End</label><input className="input" type="datetime-local" value={newEvent.end} onChange={e => setNewEvent({ ...newEvent, end: e.target.value })} /></div>
-              <div className="input-group"><label className="input-label">Category</label><select className="select" value={newEvent.category} onChange={e => setNewEvent({ ...newEvent, category: e.target.value })}>{CATEGORIES.map(c => <option key={c}>{c}</option>)}</select></div>
-              <div className="input-group"><label className="input-label">Location</label><input className="input" value={newEvent.location} onChange={e => setNewEvent({ ...newEvent, location: e.target.value })} placeholder="Optional" /></div>
+          <div className="modal-content animate-pop" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Create Event</h2>
+              <button className="close-btn" onClick={() => setShowAdd(false)}><X size={20} /></button>
             </div>
-            <div className="modal-footer"><button className="btn btn-secondary" onClick={() => setShowAdd(false)}>Cancel</button><button className="btn btn-primary" onClick={handleAddEvent}>Create Event</button></div>
+            <div className="modal-body">
+              <div className="input-group">
+                <label className="input-label">Event Name</label>
+                <input 
+                  autoFocus
+                  className="input main-title" 
+                  value={newEvent.title} 
+                  onChange={e => setNewEvent({ ...newEvent, title: e.target.value })} 
+                  placeholder="What's happening?" 
+                />
+              </div>
+              
+              <div className="form-row">
+                <div className="input-group">
+                  <label className="input-label">Date</label>
+                  <input 
+                    type="date" 
+                    className="input" 
+                    value={newEvent.date} 
+                    onChange={e => setNewEvent({ ...newEvent, date: e.target.value })} 
+                  />
+                </div>
+                <TimePicker label="Start" value={newEvent.startTime} onChange={v => setNewEvent({...newEvent, startTime: v})} />
+                <TimePicker label="End" value={newEvent.endTime} onChange={v => setNewEvent({...newEvent, endTime: v})} />
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">Category</label>
+                <div className="cat-chips">
+                  {CATEGORIES.map(c => (
+                    <button 
+                      key={c} 
+                      className={`cat-chip ${newEvent.category === c ? 'active' : ''}`}
+                      onClick={() => setNewEvent({ ...newEvent, category: c })}
+                      style={{ '--chip-color': COLORS[c] }}
+                    >
+                      <div className="chip-dot" />
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">Location</label>
+                <div className="input-with-icon">
+                  <MapPin size={16} />
+                  <input className="input" value={newEvent.location} onChange={e => setNewEvent({ ...newEvent, location: e.target.value })} placeholder="Add location" />
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowAdd(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleAddEvent}>Create Event</button>
+            </div>
           </div>
         </div>
       )}
-
-      <style jsx>{`
-        .calendar-page { max-width: 1000px; animation: fadeIn 0.4s ease; }
-        .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; }
-        .page-header h1 { font-size: 1.75rem; margin-bottom: 4px; }
-        .page-header p { color: var(--text-tertiary); }
-
-        .cal-nav { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
-        .cal-nav h2 { min-width: 200px; text-align: center; }
-        .cal-views { margin-left: auto; display: flex; gap: 4px; background: var(--bg-primary); border-radius: 8px; border: 1px solid var(--border-subtle); padding: 3px; }
-
-        .cal-grid-wrapper { background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 16px; overflow: hidden; margin-bottom: 24px; }
-        .cal-day-headers { display: grid; grid-template-columns: repeat(7, 1fr); border-bottom: 1px solid var(--border-subtle); }
-        .day-header { padding: 12px; text-align: center; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; }
-        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
-        .cal-cell { min-height: 80px; border-right: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle); padding: 8px; cursor: pointer; transition: background 0.15s; }
-        .cal-cell:nth-child(7n) { border-right: none; }
-        .cal-cell:hover.has-day { background: var(--bg-tertiary); }
-        .cal-cell.today .cell-day { background: var(--accent-primary); color: white; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; }
-        .cal-cell.selected { background: rgba(220,53,69,0.06); }
-        .cell-day { font-size: 0.8125rem; font-weight: 500; color: var(--text-secondary); }
-        .cell-dots { display: flex; gap: 3px; margin-top: 6px; flex-wrap: wrap; }
-        .cell-dot { width: 6px; height: 6px; border-radius: 50%; }
-
-        .day-detail { background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 16px; padding: 24px; margin-bottom: 24px; animation: fadeInUp 0.3s ease; }
-        .day-detail h3 { margin-bottom: 16px; }
-        .detail-event { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--border-subtle); }
-        .detail-event:last-child { border-bottom: none; }
-        .de-color { width: 4px; height: 40px; border-radius: 2px; flex-shrink: 0; }
-        .de-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
-        .de-title { font-weight: 500; font-size: 0.9375rem; }
-        .de-time, .de-loc { font-size: 0.8125rem; color: var(--text-tertiary); display: flex; align-items: center; gap: 4px; }
-        .empty-text { color: var(--text-muted); font-size: 0.875rem; }
-
-        .event-list-view { display: flex; flex-direction: column; gap: 8px; }
-        .event-list-item { display: flex; align-items: center; gap: 14px; padding: 16px 20px; background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 12px; }
-        .eli-color { width: 4px; height: 36px; border-radius: 2px; flex-shrink: 0; }
-        .eli-info { flex: 1; display: flex; flex-direction: column; }
-        .eli-title { font-weight: 500; }
-        .eli-time { font-size: 0.8125rem; color: var(--text-tertiary); }
-        .eli-loc { font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
-
-        @media (max-width: 768px) {
-          .cal-cell { min-height: 48px; padding: 4px; }
-          .cell-dots { display: none; }
-          .page-header { flex-direction: column; gap: 16px; }
-          .cal-nav { flex-wrap: wrap; }
-        }
-      `}</style>
     </div>
   );
 }
