@@ -46,6 +46,7 @@ export function AppProvider({ children }) {
         { data: events },
         { data: bills },
         { data: expenses },
+        { data: budgets },
         { data: members }
       ] = await Promise.all([
         supabase.from('grocery_items').select('*').eq('household_id', householdId),
@@ -53,6 +54,7 @@ export function AppProvider({ children }) {
         supabase.from('events').select('*').eq('household_id', householdId),
         supabase.from('bills').select('*').eq('household_id', householdId),
         supabase.from('expenses').select('*').eq('household_id', householdId),
+        supabase.from('budgets').select('*').eq('household_id', householdId),
         supabase.from('profiles').select('*').eq('household_id', householdId)
       ]);
 
@@ -63,6 +65,7 @@ export function AppProvider({ children }) {
         events: events || [],
         bills: bills || [],
         expenses: expenses || [],
+        budgets: budgets || [],
         members: members || []
       }));
     } catch (error) {
@@ -166,6 +169,7 @@ export function AppProvider({ children }) {
               'events': 'events',
               'bills': 'bills',
               'expenses': 'expenses',
+              'budgets': 'budgets',
               'profiles': 'members'
             };
             const key = keyMap[table];
@@ -293,7 +297,8 @@ export function AppProvider({ children }) {
       chores: 'chores',
       events: 'events',
       bills: 'bills',
-      expenses: 'expenses'
+      expenses: 'expenses',
+      budgets: 'budgets'
     };
 
     const keyMap = {
@@ -301,7 +306,8 @@ export function AppProvider({ children }) {
       chores: 'Chores',
       events: 'Calendar',
       bills: 'Bills',
-      expenses: 'Finances'
+      expenses: 'Finances',
+      budgets: 'Budgets'
     };
 
     const tableName = tableMap[key];
@@ -341,7 +347,8 @@ export function AppProvider({ children }) {
       chores: 'chores',
       events: 'events',
       bills: 'bills',
-      expenses: 'expenses'
+      expenses: 'expenses',
+      budgets: 'budgets'
     };
 
     const tableName = tableMap[key];
@@ -365,7 +372,8 @@ export function AppProvider({ children }) {
       chores: 'chores',
       events: 'events',
       bills: 'bills',
-      expenses: 'expenses'
+      expenses: 'expenses',
+      budgets: 'budgets'
     };
 
     const tableName = tableMap[key];

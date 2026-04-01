@@ -52,6 +52,21 @@ export default function FinancesPage() {
     setShowAddBudget(false);
   };
 
+  const openAddBill = () => {
+    resetBill();
+    setShowAddBill(true);
+  };
+
+  const openAddExpense = () => {
+    resetExpense();
+    setShowAddExpense(true);
+  };
+
+  const openAddBudget = () => {
+    resetBudget();
+    setShowAddBudget(true);
+  };
+
   const openEditBill = (bill) => {
     setNewBill({ ...bill, amount: bill.amount.toString() });
     setEditingBill(bill);
@@ -71,7 +86,11 @@ export default function FinancesPage() {
   };
 
   const handleSubmitBill = async () => {
-    if (!newBill.name || !newBill.amount || isSaving) return;
+    if (!newBill.name || !newBill.amount || !newBill.due_date) {
+      addNotification('error', 'Please fill in required fields');
+      return;
+    }
+    if (isSaving) return;
     setIsSaving(true);
     try {
       const payload = { ...newBill, amount: parseFloat(newBill.amount) };
@@ -91,7 +110,11 @@ export default function FinancesPage() {
   };
 
   const handleSubmitExpense = async () => {
-    if (!newExpense.description || !newExpense.amount || isSaving) return;
+    if (!newExpense.description || !newExpense.amount) {
+      addNotification('error', 'Please fill in required fields');
+      return;
+    }
+    if (isSaving) return;
     setIsSaving(true);
     try {
       const payload = { ...newExpense, amount: parseFloat(newExpense.amount) };
@@ -111,10 +134,14 @@ export default function FinancesPage() {
   };
 
   const handleSubmitBudget = async () => {
-    if (!newBudget.name || !newBudget.amount || isSaving) return;
+    if (!newBudget.name || !newBudget.amount) {
+      addNotification('error', 'Please fill in required fields');
+      return;
+    }
+    if (isSaving) return;
     setIsSaving(true);
     try {
-      const payload = { ...newBudget, amount: parseFloat(newBudget.amount) };
+      const payload = { ...newBudget, amount: parseFloat(newBudget.amount), household_id: currentUser?.household_id };
       let success = false;
       if (editingBudget) {
         success = await updateItem('budgets', editingBudget.id, payload);
@@ -137,6 +164,13 @@ export default function FinancesPage() {
     setIsSaving(false);
   };
 
+  const toggleBillStatus = async (id) => {
+    const bill = bills.find(b => b.id === id);
+    if (!bill) return;
+    const newStatus = bill.status === 'paid' ? 'pending' : 'paid';
+    await updateItem('bills', id, { status: newStatus });
+  };
+
   const getMemberName = (id) => members.find(m => m.id === id)?.full_name || 'Partner';
 
   return (
@@ -147,8 +181,8 @@ export default function FinancesPage() {
           <p>Track bills, budgets, and expenses — stay on top of your money.</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-secondary" onClick={() => setShowAddExpense(true)}><Plus size={16} /> Expense</button>
-          <button className="btn btn-primary" onClick={() => setShowAddBill(true)}><Plus size={16} /> Bill</button>
+          <button className="btn btn-secondary" onClick={openAddExpense}><Plus size={16} /> Expense</button>
+          <button className="btn btn-primary" onClick={openAddBill}><Plus size={16} /> Bill</button>
         </div>
       </div>
 
@@ -186,7 +220,7 @@ export default function FinancesPage() {
           <div className="fin-section">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <h3>Budget Progress</h3>
-              <button className="btn btn-ghost btn-sm" onClick={() => setShowAddBudget(true)}><Plus size={14} /> Add Budget</button>
+              <button className="btn btn-ghost btn-sm" onClick={openAddBudget}><Plus size={14} /> Add Budget</button>
             </div>
             {budgets.map(b => {
               const pct = Math.min((b.spent / b.amount) * 100, 100);
@@ -254,7 +288,7 @@ export default function FinancesPage() {
               </div>
             );
           })}
-          <button className="budget-card add-budget" onClick={() => { setShowAddBudget(true); setEditingBudget(null); }}>
+          <button className="budget-card add-budget" onClick={openAddBudget}>
             <Plus size={24} /><span>Add Budget</span>
           </button>
         </div>
