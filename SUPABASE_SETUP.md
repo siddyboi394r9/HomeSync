@@ -11,12 +11,12 @@ CREATE TABLE IF NOT EXISTS public.households (
     created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
     name TEXT NOT NULL,
     invite_code TEXT UNIQUE NOT NULL,
-    created_by UUID REFERENCES auth.users(id)
+    created_by UUID -- NOTE: No FK to auth.users due to cross-schema restrictions
 );
 
 -- Profiles
 CREATE TABLE IF NOT EXISTS public.profiles (
-    id UUID PRIMARY KEY REFERENCES auth.users(id),
+    id UUID PRIMARY KEY, -- NOTE: No FK to auth.users due to cross-schema restrictions
     created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
     email TEXT UNIQUE NOT NULL,
     full_name TEXT,
