@@ -47,7 +47,8 @@ CREATE TABLE IF NOT EXISTS public.expenses (
     date DATE DEFAULT CURRENT_DATE,
     category TEXT,
     paid_by UUID REFERENCES public.profiles(id),
-    household_id UUID NOT NULL REFERENCES public.households(id) ON DELETE CASCADE
+    household_id UUID NOT NULL REFERENCES public.households(id) ON DELETE CASCADE,
+    budget_id UUID REFERENCES public.budgets(id) ON DELETE SET NULL -- Added for budget linking
 );
 
 -- Budgets
@@ -84,4 +85,39 @@ ALTER TABLE public.budgets ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can manage household budgets" ON public.budgets
     FOR ALL USING (household_id = (SELECT household_id FROM public.profiles WHERE id = auth.uid()));
+```
+## Automated Budget Tracking
+
+The following trigger automatically updates the `spent` column in your budgets table whenever an expense is added, removed, or changed.
+
+```sql
+-- Function to recalculate spent amount
+CREATE OR REPLACE FUNCTION public.update_budget_spent()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (TG_OP = 'INSERT') THEN
+        IF NEW.budget_id IS NOT NULL THEN
+            UPDATE public.budgets SET spent = spent + NEW.amount WHERE id = NEW.budget_id;
+        END IF;
+    ELSIF (TG_OP = 'UPDATE') THEN
+        IF OLD.budget_id IS NOT NULL THEN
+            UPDATE public.budgets SET spent = spent - OLD.amount WHERE id = OLD.budget_id;
+        END IF;
+        IF NEW.budget_id IS NOT NULL THEN
+            UPDATE public.budgets SET spent = spent + NEW.amount WHERE id = NEW.budget_id;
+        END IF;
+    ELSIF (TG_OP = 'DELETE') THEN
+        IF OLD.budget_id IS NOT NULL THEN
+            UPDATE public.budgets SET spent = spent - OLD.amount WHERE id = OLD.budget_id;
+        END IF;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger activation
+DROP TRIGGER IF EXISTS trig_update_budget_on_expense ON public.expenses;
+CREATE TRIGGER trig_update_budget_on_expense
+AFTER INSERT OR UPDATE OR DELETE ON public.expenses
+FOR EACH ROW EXECUTE FUNCTION public.update_budget_spent();
 ```

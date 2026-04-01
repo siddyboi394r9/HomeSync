@@ -20,7 +20,7 @@ export default function FinancesPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   const [newBill, setNewBill] = useState({ name: '', amount: '', due_date: '', recurrence: 'monthly', category: 'Other', remind_days_before: 3, status: 'pending' });
-  const [newExpense, setNewExpense] = useState({ description: '', amount: '', date: new Date().toISOString().split('T')[0], category: 'Food', paid_by: currentUser?.id || '' });
+  const [newExpense, setNewExpense] = useState({ description: '', amount: '', date: new Date().toISOString().split('T')[0], category: 'Food', paid_by: currentUser?.id || '', budget_id: '' });
   const [newBudget, setNewBudget] = useState({ name: '', amount: '', period: 'monthly', category: 'Food', spent: 0 });
 
   if (isLoading) return <div className="loading-state">Syncing finances...</div>;
@@ -41,7 +41,7 @@ export default function FinancesPage() {
   };
 
   const resetExpense = () => {
-    setNewExpense({ description: '', amount: '', date: new Date().toISOString().split('T')[0], category: 'Food', paid_by: currentUser?.id || '' });
+    setNewExpense({ description: '', amount: '', date: new Date().toISOString().split('T')[0], category: 'Food', paid_by: currentUser?.id || '', budget_id: '' });
     setEditingExpense(null);
     setShowAddExpense(false);
   };
@@ -117,7 +117,11 @@ export default function FinancesPage() {
     if (isSaving) return;
     setIsSaving(true);
     try {
-      const payload = { ...newExpense, amount: parseFloat(newExpense.amount) };
+      const payload = { 
+        ...newExpense, 
+        amount: parseFloat(newExpense.amount),
+        budget_id: newExpense.budget_id || null 
+      };
       let success = false;
       if (editingExpense) {
         success = await updateItem('expenses', editingExpense.id, payload);
@@ -296,16 +300,26 @@ export default function FinancesPage() {
 
       {activeTab === 'expenses' && (
         <div className="expenses-list">
-          {expenses.sort((a, b) => new Date(b.date) - new Date(a.date)).map(exp => (
-            <div key={exp.id} className="expense-item">
-              <div className="ei-info"><span className="ei-desc">{exp.description}</span><span className="ei-meta">{new Date(exp.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · Paid by {getMemberName(exp.paid_by)}</span></div>
-              <span className="ei-amount">-${exp.amount.toFixed(2)}</span>
-              <div className="item-actions">
-                <button className="btn btn-ghost btn-icon sm" onClick={() => openEditExpense(exp)}><Edit2 size={14} /></button>
-                <button className="btn btn-ghost btn-icon sm text-error" onClick={() => handleRemove('expenses', exp.id)}><Trash2 size={14} /></button>
+          {expenses.sort((a, b) => new Date(b.date) - new Date(a.date)).map(exp => {
+            const budget = budgets.find(b => b.id === exp.budget_id);
+            return (
+              <div key={exp.id} className="expense-item">
+                <div className="ei-info">
+                  <span className="ei-desc">{exp.description}</span>
+                  <span className="ei-meta">
+                    {new Date(exp.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · 
+                    Paid by {getMemberName(exp.paid_by)}
+                    {budget && <span className="budget-tag"><PieChart size={10} /> {budget.name}</span>}
+                  </span>
+                </div>
+                <span className="ei-amount">-${exp.amount.toFixed(2)}</span>
+                <div className="item-actions">
+                  <button className="btn btn-ghost btn-icon sm" onClick={() => openEditExpense(exp)}><Edit2 size={14} /></button>
+                  <button className="btn btn-ghost btn-icon sm text-error" onClick={() => handleRemove('expenses', exp.id)}><Trash2 size={14} /></button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -334,8 +348,11 @@ export default function FinancesPage() {
             <div className="modal-body">
               <div className="input-group"><label className="input-label">Description</label><input className="input" value={newExpense.description} onChange={e => setNewExpense({ ...newExpense, description: e.target.value })} placeholder="e.g. Whole Foods" /></div>
               <div className="input-group"><label className="input-label">Amount ($)</label><input className="input" type="number" value={newExpense.amount} onChange={e => setNewExpense({ ...newExpense, amount: e.target.value })} placeholder="0.00" /></div>
-              <div className="input-group"><label className="input-label">Date</label><input className="input" type="date" value={newExpense.date} onChange={e => setNewExpense({ ...newExpense, date: e.target.value })} /></div>
-              <div className="input-group"><label className="input-label">Category</label><select className="select" value={newExpense.category} onChange={e => setNewExpense({ ...newExpense, category: e.target.value })}>{EXPENSE_CATS.map(c => <option key={c}>{c}</option>)}</select></div>
+              <div className="input-group-row">
+                <div className="input-group" style={{ flex: 1 }}><label className="input-label">Date</label><input className="input" type="date" value={newExpense.date} onChange={e => setNewExpense({ ...newExpense, date: e.target.value })} /></div>
+                <div className="input-group" style={{ flex: 1 }}><label className="input-label">Category</label><select className="select" value={newExpense.category} onChange={e => setNewExpense({ ...newExpense, category: e.target.value })}>{EXPENSE_CATS.map(c => <option key={c}>{c}</option>)}</select></div>
+              </div>
+              <div className="input-group"><label className="input-label">Link to Budget (Optional)</label><select className="select" value={newExpense.budget_id || ''} onChange={e => setNewExpense({ ...newExpense, budget_id: e.target.value })}><option value="">None</option>{budgets.map(b => <option key={b.id} value={b.id}>{b.name} (${b.amount}/mo)</option>)}</select></div>
               <div className="input-group"><label className="input-label">Paid By</label><select className="select" value={newExpense.paid_by} onChange={e => setNewExpense({ ...newExpense, paid_by: e.target.value })}>{members.map(m => <option key={m.id} value={m.id}>{m.full_name}</option>)}</select></div>
             </div>
             <div className="modal-footer"><button className="btn btn-secondary" onClick={resetExpense}>Cancel</button><button className="btn btn-primary" onClick={handleSubmitExpense} disabled={isSaving}>{isSaving ? 'Saving...' : (editingExpense ? 'Save Changes' : 'Add Expense')}</button></div>
@@ -401,7 +418,8 @@ export default function FinancesPage() {
         .bill-unchecked { width: 20px; height: 20px; border: 2px solid var(--border-strong); border-radius: 50%; }
         .bi-info, .ei-info { flex: 1; display: flex; flex-direction: column; }
         .bi-name, .ei-desc { font-weight: 500; }
-        .bi-meta, .ei-meta { font-size: 0.75rem; color: var(--text-tertiary); display: flex; align-items: center; gap: 4px; margin-top: 2px; }
+        .bi-meta, .ei-meta { font-size: 0.75rem; color: var(--text-tertiary); display: flex; align-items: center; gap: 8px; margin-top: 2px; flex-wrap: wrap; }
+        .budget-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; background: var(--bg-quaternary); color: var(--text-secondary); font-weight: 500; font-size: 0.7rem; }
         .bi-amount { font-size: 1.125rem; font-weight: 700; color: var(--accent-warm); }
         .ei-amount { font-size: 1rem; font-weight: 600; color: var(--error); }
         .item-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s; }
