@@ -229,7 +229,7 @@ export function AppProvider({ children }) {
     try {
       const { data: household, error: householdError } = await supabase
         .from('households')
-        .insert([{ name, invite_code: inviteCode }])
+        .insert([{ name, invite_code: inviteCode, created_by: session.user.id }])
         .select()
         .single();
 
